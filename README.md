@@ -1,4 +1,4 @@
-# react-deep 非 fober 版
+# react-deep 非 fiber 版
 
 深度学习 React，从 0 实现 React
 
