@@ -1,16 +1,94 @@
+import Component from '../react/component';
+
 const ReactDom = {
   render,
 };
 
 function render(vnode, container) {
-  console.log(vnode);
-  if (vnode === undefined) return;
+  return container.appendChild(_render(vnode));
+}
+
+function createComponent(comp, props) {
+  let inst;
+  if (comp.prototype && comp.prototype.render) {
+    // 如果是类定义的组件 则创建实例返回
+    inst = new comp(props);
+  } else {
+    // 如果是函数组件，将函数组件转化成类组件
+    inst = new Component(props);
+    inst.constructor = comp;
+    // 定义render函数
+    inst.render = function () {
+      return this.constructor(props);
+    };
+  }
+  return inst;
+}
+
+export function renderComponent(comp) {
+  let base;
+  const renderer = comp.render();
+  console.log('renderer', renderer);
+  base = _render(renderer);
+  console.log('base', base);
+  // 生命周期方法 start
+  if (comp.base && comp.componentWillUpdate) {
+    comp.componentWillUpdate();
+  }
+  if (comp.base) {
+    if (comp.componentDidUpdate) {
+      comp.componentDidUpdate();
+    }
+  } else if (comp.componentDidMount) {
+    comp.componentDidMount();
+  }
+  // 生命周期方法 end
+
+  // 节点替换
+  console.log('comp.base.parentNode', base.parentNode);
+  if (comp.base && comp.base.parentNode) {
+    console.log('节点替换');
+    comp.base.parentNode.replaceChild(base, comp.base);
+  }
+  comp.base = base;
+}
+
+function setComponentProps(comp, props) {
+  // 生命周期方法
+  if (!comp.base) {
+    if (comp.componentWillMount) comp.componentWillMount();
+  } else if (comp.componentWillReceiveProps) {
+    comp.componentWillReceiveProps();
+  }
+  // 设置组件的属性
+  comp.props = props;
+  // 渲染组件
+  renderComponent(comp);
+}
+
+function _render(vnode) {
+  if (vnode === undefined || vnode === null || typeof vnode === 'boolean') {
+    vnode = '';
+  }
+
+  if (typeof vnode === 'number') vnode = String(vnode);
 
   // 如果vnode是字符串
   if (typeof vnode === 'string') {
     // 创建文本节点
     const textNode = document.createTextNode(vnode);
-    return container.appendChild(textNode);
+    return textNode;
+  }
+
+  // 如果tag是函数，则渲染组件 ???? 此处有疑问
+  if (typeof vnode.tag === 'function') {
+    // 1.创建组件
+    const comp = createComponent(vnode.tag, vnode.attrs);
+    console.log('comp', comp);
+    // 2.设置组件的属性
+    setComponentProps(comp, vnode.attrs);
+    // 3.组件渲染的节点对象返回
+    return comp.base;
   }
 
   // 否则就是虚拟dom对象
@@ -27,11 +105,12 @@ function render(vnode, container) {
   }
 
   // 渲染子节点
-  childrens.forEach((child) => render(child, dom));
+  if (childrens) childrens.forEach((child) => render(child, dom));
 
-  return container.appendChild(dom);
+  return dom;
 }
 
+// 设置属性
 function setAttribute(dom, key, value) {
   // 将属性名className转换成class
   if (key === 'className') {
@@ -41,7 +120,7 @@ function setAttribute(dom, key, value) {
   // 如果是事件 onClick onBlur...
   if (/on\w+/.test(key)) {
     // 转小写
-    key.toLowerCase();
+    key = key.toLowerCase();
     dom[key] = value || '';
   } else if (key === 'style') {
     if (!value || typeof value === 'string') {
