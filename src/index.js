@@ -58,8 +58,8 @@ class Home extends React.Component {
 }
 
 const title = 'active';
-ReactDom.render(<Home name={title} />, document.querySelector('#root'));
-// ReactDom.render(ele, document.querySelector('#root'));
+// ReactDom.render(<Home name={title} />, document.querySelector('#root'));
+ReactDom.render(ele, document.querySelector('#root'));
 
 // const ele = /*#__PURE__*/React.createElement("div", {
 //     className: "active",

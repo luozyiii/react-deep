@@ -1,10 +1,14 @@
 import Component from '../react/component';
+import { diff } from './diff';
 
 const ReactDom = {
   render,
+  renderComponent,
+  setAttribute,
 };
 
-function render(vnode, container) {
+function render(vnode, container, dom) {
+  // return diff(dom, vnode, container);
   return container.appendChild(_render(vnode));
 }
 
@@ -25,7 +29,7 @@ function createComponent(comp, props) {
   return inst;
 }
 
-export function renderComponent(comp) {
+function renderComponent(comp) {
   let base;
   const renderer = comp.render();
   console.log('renderer', renderer);

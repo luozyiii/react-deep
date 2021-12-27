@@ -1,4 +1,4 @@
-# react-deep
+# react-deep 非 fober 版
 
 深度学习 React，从 0 实现 React
 
@@ -24,5 +24,12 @@ npm install --save-dev @babel/preset-react
 ## 组件和生命周期
 
 ## diff 算法
+
+如何减少 DOM 更新？我们需要找出渲染前后真正变化的部分，只更新这一部分，而对比变化，找到需要更新部分的算法称为 “diff 算法”
+
+### 两个原则
+
+- 对比当前真实的 DOM 和虚拟 DOM，在对比过程中直接更新真实 DOM
+- 只对比同一层级的变化
 
 ## 异步的 setState
