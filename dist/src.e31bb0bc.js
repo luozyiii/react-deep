@@ -124,6 +124,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.diff = diff;
+exports.diffNode = diffNode;
 
 var _index = require("./index");
 
@@ -174,7 +175,7 @@ function diffNode(dom, vnode) {
   }
 
   if (typeof vnode.tag === 'function') {
-    diffComponent(out, vnode);
+    return diffComponent(out, vnode);
   } // 非文本节点
 
 
@@ -183,8 +184,10 @@ function diffNode(dom, vnode) {
   } // 比较子节点(dom节点和组件)
 
 
-  if (vnode.childrens && vnode.childrens.length > 0 || out.childrens && out.childrens.length > 0) {
+  if (vnode.childrens && vnode.childrens.length > 0 && out.childNodes && out.childNodes.length > 0) {
     // 对比组件 或者子节点
+    console.log('out', out);
+    console.log('vnode', vnode);
     diffChildren(out, vnode.childrens);
   }
 
@@ -192,14 +195,55 @@ function diffNode(dom, vnode) {
   return out;
 }
 
-function diffComponent(dom, vnode) {}
+function diffComponent(dom, vnode) {
+  var comp = dom; // 如果组件没有变化，重新设置props
+
+  if (comp && comp.construtor === vnode.tag) {
+    (0, _index.setComponentProps)(comp, vnode.attrs); // 赋值
+
+    dom = comp.base;
+  } else {
+    // 组件类型发生变化
+    if (comp) {
+      // 先移除旧的组件
+      unmountComponent(comp);
+      comp = null;
+    } // 1. 创建新组件
+
+
+    comp = (0, _index.createComponent)(vnode.tag, vnode.attrs); // 2. 设置组件属性
+
+    (0, _index.setComponentProps)(comp, vnode.attrs); // 3. 给当前挂载base
+
+    dom = comp.base;
+  }
+
+  return dom;
+}
+
+function unmountComponent(comp) {
+  removeNode(comp.base);
+}
+
+function removeNode(dom) {
+  if (dom && dom.parentNode) {
+    dom.parentNode.removeNode(dom);
+  }
+}
 
 function diffChildren(dom, vChildrens) {
   var domChildren = dom.childNodes;
+  console.log('domChildren', domChildren);
   var children = [];
   var keyed = {}; // 将有key的节点（用对象保存）和没有key的节点（用数组保存）分开
 
-  if (domChildren.length > 0) {}
+  if (domChildren && domChildren.length > 0) {
+    domChildren.forEach(function (c) {
+      if (c.attributes && key in c.attributes) {
+        keyed[c.attributes[key]] = c;
+      }
+    });
+  }
 
   if (vChildrens && vChildrens.length > 0) {
     var min = 0;
@@ -234,7 +278,7 @@ function diffChildren(dom, vChildrens) {
 
       child = diffNode(children, vchild); // 更新DOM
 
-      var f = domChildren[i];
+      var f = domChildren ? domChildren[i] : undefined;
 
       if (child && child !== dom && child !== f) {
         // 如果更新前的对应位置为空，说明此节点是新增的
@@ -264,17 +308,17 @@ function diffAttribute(dom, vnode) {
   // 如果原来的属性跟新的属性对比，不在新的属性中，则将其移除掉（属性值设为undefined）
 
 
-  for (var key in oldAttrs) {
-    if (!(key in newAttrs)) {
-      (0, _index.setAttribute)(dom, key, undefined);
+  for (var _key in oldAttrs) {
+    if (!(_key in newAttrs)) {
+      (0, _index.setAttribute)(dom, _key, undefined);
     }
   } // 更新
 
 
-  for (var _key in newAttrs) {
-    if (oldAttrs[_key] !== newAttrs[_key]) {
+  for (var _key2 in newAttrs) {
+    if (oldAttrs[_key2] !== newAttrs[_key2]) {
       // 值不同，更新值
-      (0, _index.setAttribute)(dom, _key, newAttrs[_key]);
+      (0, _index.setAttribute)(dom, _key2, newAttrs[_key2]);
     }
   }
 }
@@ -297,7 +341,9 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
 var ReactDom = {
   render: render,
   renderComponent: renderComponent,
-  setAttribute: setAttribute
+  setAttribute: setAttribute,
+  setComponentProps: setComponentProps,
+  createComponent: createComponent
 };
 
 function render(vnode, container, dom) {
@@ -309,7 +355,8 @@ function createComponent(comp, props) {
   var inst;
 
   if (comp.prototype && comp.prototype.render) {
-    // 如果是类定义的组件 则创建实例返回
+    console.log('类组件加载了'); // 如果是类定义的组件 则创建实例返回
+
     inst = new comp(props);
   } else {
     // 如果是函数组件，将函数组件转化成类组件
@@ -328,7 +375,8 @@ function renderComponent(comp) {
   var base;
   var renderer = comp.render();
   console.log('renderer', renderer);
-  base = _render(renderer);
+  base = _render(renderer); // base = diffNode(comp.base, renderer);
+
   console.log('base', base); // 生命周期方法 start
 
   if (comp.base && comp.componentWillUpdate) {
@@ -517,6 +565,8 @@ var React = {
 };
 
 function createElement(tag, attrs) {
+  attrs = attrs || {};
+
   for (var _len = arguments.length, childrens = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
     childrens[_key - 2] = arguments[_key];
   }
@@ -526,9 +576,9 @@ function createElement(tag, attrs) {
     // 外层的标签
     attrs: attrs,
     // 属性 是一个对象
-    childrens: childrens // 是一个数组
-    // key: attrs.key || null,
-
+    childrens: childrens,
+    // 是一个数组
+    key: attrs.key || null
   };
 }
 
@@ -678,7 +728,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "64249" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "58351" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

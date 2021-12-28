@@ -1,10 +1,12 @@
 import Component from '../react/component';
-import { diff } from './diff';
+import { diff, diffNode } from './diff';
 
 const ReactDom = {
   render,
   renderComponent,
   setAttribute,
+  setComponentProps,
+  createComponent,
 };
 
 function render(vnode, container, dom) {
@@ -15,6 +17,7 @@ function render(vnode, container, dom) {
 function createComponent(comp, props) {
   let inst;
   if (comp.prototype && comp.prototype.render) {
+    console.log('类组件加载了');
     // 如果是类定义的组件 则创建实例返回
     inst = new comp(props);
   } else {
@@ -34,6 +37,7 @@ function renderComponent(comp) {
   const renderer = comp.render();
   console.log('renderer', renderer);
   base = _render(renderer);
+  // base = diffNode(comp.base, renderer);
   console.log('base', base);
   // 生命周期方法 start
   if (comp.base && comp.componentWillUpdate) {

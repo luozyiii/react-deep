@@ -1,4 +1,4 @@
-import { setAttribute } from './index';
+import { setAttribute, setComponentProps, createComponent } from './index';
 export function diff(dom, vnode, container) {
   // 对比节点的变化
   const ret = diffNode(dom, vnode);
@@ -8,7 +8,7 @@ export function diff(dom, vnode, container) {
   return ret;
 }
 
-function diffNode(dom, vnode) {
+export function diffNode(dom, vnode) {
   let out = dom;
   if (vnode === undefined || vnode === null || typeof vnode === 'boolean') vnode = '';
   if (typeof vnode === 'number') vnode = String(vnode);
@@ -31,7 +31,7 @@ function diffNode(dom, vnode) {
   }
 
   if (typeof vnode.tag === 'function') {
-    diffComponent(out, vnode);
+    return diffComponent(out, vnode);
   }
 
   // 非文本节点
@@ -39,22 +39,62 @@ function diffNode(dom, vnode) {
     out = document.createElement(vnode.tag);
   }
   // 比较子节点(dom节点和组件)
-  if ((vnode.childrens && vnode.childrens.length > 0) || (out.childrens && out.childrens.length > 0)) {
+  if (vnode.childrens && vnode.childrens.length > 0 && out.childNodes && out.childNodes.length > 0) {
     // 对比组件 或者子节点
+    console.log('out', out);
+    console.log('vnode', vnode);
     diffChildren(out, vnode.childrens);
   }
   diffAttribute(out, vnode);
   return out;
 }
 
-function diffComponent(dom, vnode) {}
+function diffComponent(dom, vnode) {
+  let comp = dom;
+  // 如果组件没有变化，重新设置props
+  if (comp && comp.construtor === vnode.tag) {
+    setComponentProps(comp, vnode.attrs);
+    // 赋值
+    dom = comp.base;
+  } else {
+    // 组件类型发生变化
+    if (comp) {
+      // 先移除旧的组件
+      unmountComponent(comp);
+      comp = null;
+    }
+    // 1. 创建新组件
+    comp = createComponent(vnode.tag, vnode.attrs);
+    // 2. 设置组件属性
+    setComponentProps(comp, vnode.attrs);
+    // 3. 给当前挂载base
+    dom = comp.base;
+  }
+  return dom;
+}
+
+function unmountComponent(comp) {
+  removeNode(comp.base);
+}
+
+function removeNode(dom) {
+  if (dom && dom.parentNode) {
+    dom.parentNode.removeNode(dom);
+  }
+}
 
 function diffChildren(dom, vChildrens) {
   const domChildren = dom.childNodes;
+  console.log('domChildren', domChildren);
   const children = [];
   const keyed = {};
   // 将有key的节点（用对象保存）和没有key的节点（用数组保存）分开
-  if (domChildren.length > 0) {
+  if (domChildren && domChildren.length > 0) {
+    domChildren.forEach((c) => {
+      if (c.attributes && key in c.attributes) {
+        keyed[c.attributes[key]] = c;
+      }
+    });
   }
   if (vChildrens && vChildrens.length > 0) {
     let min = 0;
@@ -85,7 +125,7 @@ function diffChildren(dom, vChildrens) {
       // 对比
       child = diffNode(children, vchild);
       // 更新DOM
-      const f = domChildren[i];
+      const f = domChildren ? domChildren[i] : undefined;
       if (child && child !== dom && child !== f) {
         // 如果更新前的对应位置为空，说明此节点是新增的
         if (!f) {
