@@ -329,6 +329,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
+exports.renderComponent = renderComponent;
 
 var _component = _interopRequireDefault(require("../react/component"));
 
@@ -340,7 +341,6 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
 
 var ReactDom = {
   render: render,
-  renderComponent: renderComponent,
   setAttribute: setAttribute,
   setComponentProps: setComponentProps,
   createComponent: createComponent
@@ -506,7 +506,77 @@ function setAttribute(dom, key, value) {
 
 var _default = ReactDom;
 exports.default = _default;
-},{"../react/component":"react/component.js","./diff":"react-dom/diff.js"}],"react/component.js":[function(require,module,exports) {
+},{"../react/component":"react/component.js","./diff":"react-dom/diff.js"}],"react/setStateQueue.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.enqueueSetState = enqueueSetState;
+
+var _reactDom = require("../react-dom");
+
+/**
+ * 1. 异步更新state 短时间内把多个setState合并一个(队列：先进先出)
+ * 2. 一段时间之后，循环清空队列，渲染组件
+ */
+var setStateQueue = []; // 保存当前的组件
+
+var renderQueue = [];
+
+function enqueueSetState(stateChange, component) {
+  if (setStateQueue.length === 0) {
+    setTimeout(function () {
+      flush();
+    }, 0);
+  } // 1. 短时间内合并多个setState
+
+
+  setStateQueue.push({
+    stateChange: stateChange,
+    component: component
+  }); // 如果 renderQueue 里面没有组件，添加到队列中
+
+  var r = renderQueue.some(function (item) {
+    return item === component;
+  });
+
+  if (!r) {
+    // 首次添加
+    renderQueue.push(r);
+  }
+} // 一段时间之后
+
+
+function flush() {
+  var item, component;
+
+  while (item = setStateQueue.shift()) {
+    var _item = item,
+        stateChange = _item.stateChange,
+        _component = _item.component; // 保存之前的状态
+
+    if (!_component.prevState) {
+      _component.prevState = Object.assign({}, _component.state);
+    }
+
+    if (typeof stateChange === 'function') {
+      // 是一个回调函数
+      Object.assign(_component.state, stateChange(_component.prevState, _component.props));
+    } else {
+      // 是一个对象
+      Object.assign(_component.state, stateChange);
+    } // 赋值
+
+
+    _component.prevState = _component.state;
+  }
+
+  while (component = renderQueue.shift()) {
+    (0, _reactDom.renderComponent)(component);
+  }
+}
+},{"../react-dom":"react-dom/index.js"}],"react/component.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -515,6 +585,8 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 
 var _reactDom = require("../react-dom");
+
+var _setStateQueue = require("./setStateQueue");
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -535,10 +607,12 @@ var Component = /*#__PURE__*/function () {
   _createClass(Component, [{
     key: "setState",
     value: function setState(stateChange) {
-      // 对象拷贝
-      Object.assign(this.state, stateChange); // 渲染组件
-
-      (0, _reactDom.renderComponent)(this);
+      // // 对象拷贝
+      // Object.assign(this.state, stateChange);
+      // // 渲染组件
+      // renderComponent(this);
+      // 异步state
+      (0, _setStateQueue.enqueueSetState)(stateChange, this);
     }
   }]);
 
@@ -547,7 +621,7 @@ var Component = /*#__PURE__*/function () {
 
 var _default = Component;
 exports.default = _default;
-},{"../react-dom":"react-dom/index.js"}],"react/index.js":[function(require,module,exports) {
+},{"../react-dom":"react-dom/index.js","./setStateQueue":"react/setStateQueue.js"}],"react/index.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -670,6 +744,15 @@ var Home = /*#__PURE__*/function (_React$Component) {
     key: "componentDidMount",
     value: function componentDidMount() {
       console.log('组件加载完成');
+
+      for (var i = 0; i < 10; i++) {
+        this.setState(function (prevState, prevProps) {
+          console.log(prevState.num);
+          return {
+            num: prevState.num + 1
+          };
+        });
+      }
     }
   }, {
     key: "handlerClick",
@@ -694,9 +777,12 @@ var Home = /*#__PURE__*/function (_React$Component) {
   return Home;
 }(_react.default.Component);
 
-var title = 'active'; // ReactDom.render(<Home name={title} />, document.querySelector('#root'));
+var title = 'active';
 
-_reactDom.default.render(ele, document.querySelector('#root')); // const ele = /*#__PURE__*/React.createElement("div", {
+_reactDom.default.render( /*#__PURE__*/_react.default.createElement(Home, {
+  name: title
+}), document.querySelector('#root')); // ReactDom.render(ele, document.querySelector('#root'));
+// const ele = /*#__PURE__*/React.createElement("div", {
 //     className: "active",
 //     title: "123"
 // }, "hello, ", /*#__PURE__*/React.createElement("span", null, "react"));

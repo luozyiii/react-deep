@@ -38,6 +38,14 @@ class Home extends React.Component {
   }
   componentDidMount() {
     console.log('组件加载完成');
+    for (let i = 0; i < 10; i++) {
+      this.setState((prevState, prevProps) => {
+        console.log(prevState.num);
+        return {
+          num: prevState.num + 1,
+        };
+      });
+    }
   }
 
   handlerClick() {
@@ -58,8 +66,8 @@ class Home extends React.Component {
 }
 
 const title = 'active';
-// ReactDom.render(<Home name={title} />, document.querySelector('#root'));
-ReactDom.render(ele, document.querySelector('#root'));
+ReactDom.render(<Home name={title} />, document.querySelector('#root'));
+// ReactDom.render(ele, document.querySelector('#root'));
 
 // const ele = /*#__PURE__*/React.createElement("div", {
 //     className: "active",

@@ -3,7 +3,6 @@ import { diff, diffNode } from './diff';
 
 const ReactDom = {
   render,
-  renderComponent,
   setAttribute,
   setComponentProps,
   createComponent,
@@ -32,7 +31,7 @@ function createComponent(comp, props) {
   return inst;
 }
 
-function renderComponent(comp) {
+export function renderComponent(comp) {
   let base;
   const renderer = comp.render();
   console.log('renderer', renderer);
